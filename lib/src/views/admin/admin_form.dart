@@ -275,7 +275,7 @@ class _DialogoFormularioState extends State<_DialogoFormulario> {
             if (v == null || v.trim().isEmpty) {
               return 'Este campo es obligatorio';
             }
-            if (c.tipo == TipoCampo.numero && int.tryParse(v.trim()) == null) {
+            if (c.tipo == TipoCampo.numero && num.tryParse(v.trim()) == null) {
               return 'Ingresa un número válido';
             }
             return null;

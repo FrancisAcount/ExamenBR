@@ -68,7 +68,7 @@ class WelcomeHero extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        WelcomeBadge(
+        const WelcomeBadge(
           texto: 'Bienvenido',
           icon: Icons.star_rounded,
           color: AppColors.rosado,

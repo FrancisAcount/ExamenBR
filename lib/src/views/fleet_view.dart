@@ -5,6 +5,7 @@ import '../models/bus.dart';
 import '../theme/app_colors.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/data_table.dart';
+import 'admin/admin_form.dart';
 
 /// 🚌 Apartado 3: control de autobuses, placas y estado mecánico.
 class FleetView extends StatelessWidget {
@@ -59,7 +60,7 @@ class FleetView extends StatelessWidget {
               subtitle: '${buses.length} vehículos registrados',
               icon: Icons.directions_bus_filled_rounded,
               trailing: FilledButton.icon(
-                onPressed: () => _notify(context, 'Registro de vehículo'),
+                onPressed: () => _nuevoBus(context),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Nuevo bus'),
               ),
@@ -172,9 +173,59 @@ class FleetView extends StatelessWidget {
         ),
       );
 
-  void _notify(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$message (demostración)')));
+  Future<void> _nuevoBus(BuildContext context) async {
+    final store = AdminStore.instance;
+    final valores = await mostrarFormulario(
+      context: context,
+      titulo: 'Nuevo bus',
+      icono: Icons.directions_bus_rounded,
+      campos: const [
+        CampoForm(clave: 'placa', etiqueta: 'Placa (única)', icono: Icons.confirmation_number_outlined),
+        CampoForm(clave: 'marca', etiqueta: 'Marca', icono: Icons.factory_outlined),
+        CampoForm(clave: 'modelo', etiqueta: 'Modelo', icono: Icons.directions_bus_outlined),
+        CampoForm(clave: 'capacidad', etiqueta: 'Capacidad (pasajeros)', icono: Icons.groups_outlined, tipo: TipoCampo.numero),
+        CampoForm(clave: 'conductor', etiqueta: 'Conductor asignado', icono: Icons.badge_outlined),
+        CampoForm(clave: 'ruta', etiqueta: 'Ruta asignada', icono: Icons.route_rounded),
+        CampoForm(
+          clave: 'estado',
+          etiqueta: 'Estado',
+          icono: Icons.build_circle_outlined,
+          tipo: TipoCampo.opciones,
+          opciones: ['En ruta', 'En garaje', 'Mantenimiento', 'Fuera de servicio'],
+        ),
+        CampoForm(clave: 'kilometraje', etiqueta: 'Kilometraje', icono: Icons.speed_rounded, tipo: TipoCampo.numero),
+        CampoForm(clave: 'mantenimiento', etiqueta: 'Próximo mantenimiento', icono: Icons.event_rounded),
+      ],
+    );
+    if (valores == null || !context.mounted) return;
+    final bus = Bus(
+      placa: valores['placa']!.toUpperCase(),
+      marca: valores['marca']!,
+      modelo: valores['modelo']!,
+      capacidad: int.tryParse(valores['capacidad']!) ?? 0,
+      conductor: valores['conductor']!,
+      ruta: valores['ruta']!,
+      estado: _estadoBus(valores['estado'] ?? ''),
+      kilometraje: int.tryParse(valores['kilometraje']!) ?? 0,
+      proximoMantenimiento: valores['mantenimiento']!,
+    );
+    final ok = store.agregarBus(bus);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ok
+            ? 'Bus ${bus.placa} agregado correctamente'
+            : 'No se pudo agregar: la placa ya existe'),
+      ),
+    );
   }
+
+  BusStatus _estadoBus(String etiqueta) => switch (etiqueta) {
+        'En ruta' => BusStatus.enRuta,
+        'Mantenimiento' => BusStatus.mantenimiento,
+        'Fuera de servicio' => BusStatus.fueraDeServicio,
+        _ => BusStatus.enGaraje,
+      };
 }
 
 /// Color asociado al estado mecánico del bus.

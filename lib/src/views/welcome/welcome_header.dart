@@ -52,7 +52,7 @@ class WelcomeHeader extends StatelessWidget {
                       color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
                     ),
                   ),
-                  SizedBox(height: 1),
+                  const SizedBox(height: 1),
                   Text(
                     'Servicio de transporte escolar',
                     style: TextStyle(
@@ -202,7 +202,7 @@ class _BuscadorCompacto extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: AppColors.guindo, width: 1.4),
+            borderSide: const BorderSide(color: AppColors.guindo, width: 1.4),
           ),
         ),
       ),

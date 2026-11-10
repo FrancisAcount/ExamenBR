@@ -46,7 +46,7 @@ class _WelcomeBenefitsCarouselState extends State<WelcomeBenefitsCarousel> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     if (widget.items.isEmpty) {
-      return WelcomeEmptyState(texto: 'Beneficios no disponibles por ahora.');
+      return const WelcomeEmptyState(texto: 'Beneficios no disponibles por ahora.');
     }
 
     return WelcomeSection(

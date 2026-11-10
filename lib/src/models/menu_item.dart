@@ -26,6 +26,7 @@ class AppMenu {
     MenuItem(label: 'Conductores y Personal', icon: Icons.badge_rounded, title: 'Conductores y Personal', subtitle: 'Fichas técnicas de choferes y asistentes'),
     MenuItem(label: 'Registro de Estudiantes', icon: Icons.school_rounded, title: 'Registro de Estudiantes', subtitle: 'Alumnos asignados a cada ruta'),
     MenuItem(label: 'Alertas y Seguridad', icon: Icons.warning_amber_rounded, title: 'Alertas y Seguridad', subtitle: 'Bitácora de retrasos y emergencias'),
+    MenuItem(label: 'Reportes', icon: Icons.assessment_rounded, title: 'Reportes', subtitle: 'Informes de viajes, buses, estudiantes y operación'),
     MenuItem(label: 'Galería', icon: Icons.photo_library_rounded, title: 'Galería', subtitle: 'Fotos reales de nuestra flota de 18 asientos'),
     MenuItem(label: 'Configuración', icon: Icons.settings_rounded, title: 'Configuración', subtitle: 'Ajustes generales del sistema y perfil'),
     MenuItem(label: 'Modo Conductor', icon: Icons.satellite_alt_rounded, title: 'Modo Conductor', subtitle: 'GPS en tiempo real desde el celular del chofer'),

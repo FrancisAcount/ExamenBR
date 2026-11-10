@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../services/estudiante_service.dart';
 import '../data/admin_store.dart';
 import '../data/driver_data.dart';
 import '../models/driver_record.dart';
@@ -23,9 +22,6 @@ class StudentsView extends StatefulWidget {
 class _StudentsViewState extends State<StudentsView> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
-List<EstudianteApi> _estudiantesMySQL = [];
-bool _cargandoEstudiantes = false;
-String? _errorEstudiantes;
   /// Unidad abierta en detalle; `null` = se muestra la cuadrícula de buses.
   ///
   /// El detalle se gestiona con estado local (y no con `Navigator.push`) para

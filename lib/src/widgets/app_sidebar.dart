@@ -48,8 +48,8 @@ class AppSidebar extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Maranata', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
-                  SizedBox(height: 2),
+                  const Text('Maranata', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
                   Text(
                     'Transporte Escolar',
                     style: TextStyle(
@@ -138,7 +138,7 @@ class AppSidebar extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Coordinador', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                  const Text('Coordinador', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
                   Text('Administrador', style: TextStyle(color: isDark ? AppColors.darkTextMuted : const Color(0xFF94A3B8), fontSize: 11)),
                 ],
               ),

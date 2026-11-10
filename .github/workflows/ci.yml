@@ -1,0 +1,32 @@
+# CI: análisis estático + tests de widget en cada push/PR a main.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Flutter (canal estable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolver dependencias
+        run: flutter pub get
+
+      - name: Analizar código (0 problemas esperados)
+        run: flutter analyze
+
+      - name: Tests de widget (17 esperados)
+        run: flutter test
+
+      - name: Compilación web (verifica build completo)
+        run: flutter build web

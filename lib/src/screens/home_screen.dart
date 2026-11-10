@@ -9,6 +9,7 @@ import '../views/drivers_view.dart';
 import '../views/fleet_view.dart';
 import '../views/gallery_view.dart';
 import '../views/monitoring_view.dart';
+import '../views/reports_view.dart';
 import '../views/settings_view.dart';
 import '../views/students_view.dart';
 import '../views/welcome_view.dart';
@@ -46,16 +47,20 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Se construye en cada build porque `WelcomeView` recibe el callback que
   /// lo devuelve al Panel de Inicio; el resto son widgets constantes.
   List<Widget> get _views => [
-        WelcomeView(onIniciarSesion: () => _selectModule(_kPanelIndex)),
+        WelcomeView(
+          onIniciarSesion: () => _selectModule(_kPanelIndex),
+          onVerRutas: () => _selectModule(2), // Rutas y Monitoreo
+        ),
         const DashboardView(),
         const MonitoringView(),
         const FleetView(),
         const DriversView(),
         const StudentsView(),
         const AlertsView(),
+        const ReportsView(),
         const GalleryView(),
         const SettingsView(),
-        DriverModeView(),
+        const DriverModeView(),
       ];
 
   void _selectModule(int index) {

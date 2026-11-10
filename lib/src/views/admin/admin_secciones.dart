@@ -18,6 +18,7 @@ import '../../models/foto_galeria.dart';
 import '../../models/route.dart';
 import '../../models/safety_alert.dart';
 import '../../models/student_record.dart';
+import '../../services/api_crud_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/common_widgets.dart';
 import 'admin_form.dart';
@@ -105,14 +106,14 @@ class AdminAlumnosSection extends StatelessWidget {
           etiqueta: 'Apellido materno',
           icono: Icons.person_outline_rounded,
         ),
-        CampoForm(
+        const CampoForm(
           clave: 'grado',
           etiqueta: 'Grado',
           icono: Icons.class_outlined,
           tipo: TipoCampo.opciones,
           opciones: StudentData.grados,
         ),
-        CampoForm(
+        const CampoForm(
           clave: 'parada',
           etiqueta: 'Parada',
           icono: Icons.location_on_outlined,
@@ -1083,5 +1084,479 @@ class _TarjetaSubida extends StatelessWidget {
     if (ok == true) store.eliminarFoto(foto.id);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Secciones CRUD conectadas al backend FastAPI (viajes, asignaciones, ubicaciones)
+// ---------------------------------------------------------------------------
+
+String _fmtId(dynamic v) => v == null ? '' : '$v';
+
+String _apiSubtitulo(Map<String, dynamic> m, List<String> campos) {
+  final partes = <String>[];
+  for (final c in campos) {
+    final v = m[c];
+    if (v == null) continue;
+    final s = '$v'.trim();
+    if (s.isEmpty || s == 'null') continue;
+    partes.add('$c: $s');
+  }
+  return partes.join(' · ');
+}
+
+dynamic _parseValor(String clave, String valor, Map<String, dynamic> original) {
+  if (valor.trim().isEmpty) return null;
+  final o = original[clave];
+  if (o is int) return int.tryParse(valor) ?? valor;
+  if (o is double) return double.tryParse(valor) ?? valor;
+  if (o is num) return num.tryParse(valor) ?? valor;
+  // ids comunes
+  if (clave.endsWith('_id') || clave == 'id' || clave == 'capacidad') {
+    final n = int.tryParse(valor);
+    if (n != null) return n;
+  }
+  if (clave == 'latitud' || clave == 'longitud' || clave == 'velocidad') {
+    final n = double.tryParse(valor);
+    if (n != null) return n;
+  }
+  return valor;
+}
+
+Map<String, String> _inicialesDe(Map<String, dynamic> item, List<String> claves) {
+  final out = <String, String>{};
+  for (final k in claves) {
+    final v = item[k];
+    if (v != null && '$v' != 'null') out[k] = '$v';
+  }
+  return out;
+}
+
+class _ApiCrudSection extends StatefulWidget {
+  const _ApiCrudSection({
+    required this.titulo,
+    required this.subtitulo,
+    required this.icono,
+    required this.path,
+    required this.listKey,
+    required this.hintBusqueda,
+    required this.etiquetaNuevo,
+    required this.campos,
+    required this.camposResumen,
+  });
+
+  final String titulo;
+  final String subtitulo;
+  final IconData icono;
+  final String path;
+  final String listKey;
+  final String hintBusqueda;
+  final String etiquetaNuevo;
+  final List<CampoForm> campos;
+  final List<String> camposResumen;
+
+  @override
+  State<_ApiCrudSection> createState() => _ApiCrudSectionState();
+}
+
+class _ApiCrudSectionState extends State<_ApiCrudSection> {
+  final TextEditingController _busqueda = TextEditingController();
+  String _consulta = '';
+  bool _cargando = true;
+  String? _error;
+  List<Map<String, dynamic>> _items = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  @override
+  void dispose() {
+    _busqueda.dispose();
+    super.dispose();
+  }
+
+  Future<void> _cargar() async {
+    setState(() {
+      _cargando = true;
+      _error = null;
+    });
+    try {
+      final data = await ApiCrudService.listar(widget.path, listKey: widget.listKey);
+      if (!mounted) return;
+      setState(() {
+        _items = data;
+        _cargando = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = '$e';
+        _cargando = false;
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> get _visibles {
+    final q = _consulta.trim().toLowerCase();
+    if (q.isEmpty) return _items;
+    return _items.where((m) => m.values.any((v) => '$v'.toLowerCase().contains(q))).toList();
+  }
+
+  Future<void> _nuevo() async {
+    final claves = widget.campos.map((c) => c.clave).toList();
+    final valores = await mostrarFormulario(
+      context: context,
+      titulo: widget.etiquetaNuevo,
+      icono: widget.icono,
+      campos: widget.campos,
+    );
+    if (valores == null || !mounted) return;
+    final body = <String, dynamic>{};
+    for (final k in claves) {
+      final v = valores[k];
+      if (v == null) continue;
+      if (v.trim().isEmpty) continue; // omitir vacíos para no enviar nulls innecesarios
+      body[k] = _parseValor(k, v, const {});
+    }
+    try {
+      await ApiCrudService.crear(widget.path, body);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${widget.titulo}: registro creado')),
+      );
+      await _cargar();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo crear: $e')),
+      );
+    }
+  }
+
+  Future<void> _editar(Map<String, dynamic> item) async {
+    final id = item['id'] ?? item.values.first;
+    final claves = widget.campos.map((c) => c.clave).toList();
+    final valores = await mostrarFormulario(
+      context: context,
+      titulo: 'Editar ${widget.titulo.toLowerCase()}',
+      icono: widget.icono,
+      campos: widget.campos,
+      iniciales: _inicialesDe(item, claves),
+    );
+    if (valores == null || !mounted) return;
+    final body = <String, dynamic>{};
+    for (final k in claves) {
+      final v = valores[k];
+      if (v == null) continue;
+      if (v.trim().isEmpty) {
+        body[k] = null;
+      } else {
+        body[k] = _parseValor(k, v, item);
+      }
+    }
+    try {
+      await ApiCrudService.actualizar('${widget.path}/${_fmtId(id)}', body);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${widget.titulo}: registro actualizado')),
+      );
+      await _cargar();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo actualizar: $e')),
+      );
+    }
+  }
+
+  Future<void> _eliminar(Map<String, dynamic> item) async {
+    final id = item['id'] ?? item.values.first;
+    final ok = await confirmarEliminacion(
+      context,
+      titulo: 'Eliminar registro',
+      detalle: '¿Eliminar el registro #${_fmtId(id)} de ${widget.titulo}? Esta acción no se puede deshacer.',
+    );
+    if (!ok || !mounted) return;
+    try {
+      await ApiCrudService.eliminar('${widget.path}/${_fmtId(id)}');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${widget.titulo}: registro eliminado')),
+      );
+      await _cargar();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo eliminar: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visibles = _visibles;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: AppSearchBar(
+                hintText: widget.hintBusqueda,
+                controller: _busqueda,
+                onChanged: (v) => setState(() => _consulta = v),
+              ),
+            ),
+            const SizedBox(width: 12),
+            FilledButton.icon(
+              onPressed: _nuevo,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: Text(widget.etiquetaNuevo),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.guindo,
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.titulo,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.subtitulo,
+                    style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            StatusChip(
+              label: '${visibles.length} registros',
+              color: AppColors.navy,
+              icon: widget.icono,
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              tooltip: 'Recargar desde API',
+              onPressed: _cargar,
+              icon: const Icon(Icons.refresh_rounded),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_cargando)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_error != null)
+          SectionCard(
+            title: 'No se pudo conectar con el backend',
+            subtitle: 'Verifica que la API esté corriendo y que la BD esté disponible.',
+            icon: Icons.cloud_off_rounded,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _error!,
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.guindo),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'API: ${ApiCrudService.baseUrl}${widget.path}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _cargar,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                  label: const Text('Reintentar'),
+                ),
+              ],
+            ),
+          )
+        else if (visibles.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(
+              child: Text(
+                'Sin registros. Crea uno nuevo para probar el formulario.',
+                style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+              ),
+            ),
+          )
+        else
+          ...visibles.map(_tarjeta),
+      ],
+    );
+  }
+
+  Widget _tarjeta(Map<String, dynamic> item) {
+    final id = _fmtId(item['id'] ?? item.values.firstOrNull ?? '');
+    final titulo = item['nombre'] ?? item['nombres'] ?? item['titulo'] ?? 'Registro #$id';
+    final subtitulo = _apiSubtitulo(item, widget.camposResumen);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 21,
+              backgroundColor: AppColors.navy.withValues(alpha: 0.10),
+              child: Text(
+                id.isEmpty ? '?' : id,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navy,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$titulo  (id: $id)',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitulo.isEmpty ? '—' : subtitulo,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Editar',
+              icon: const Icon(Icons.edit_outlined, size: 19),
+              color: AppColors.textSecondary,
+              onPressed: () => _editar(item),
+            ),
+            IconButton(
+              tooltip: 'Eliminar',
+              icon: const Icon(Icons.delete_outline_rounded, size: 19),
+              color: AppColors.guindo,
+              onPressed: () => _eliminar(item),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// CRUD de Viajes (backend /viajes).
+class AdminViajesSection extends StatelessWidget {
+  const AdminViajesSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const _ApiCrudSection(
+      titulo: 'Viajes',
+      subtitulo: 'Programación y control de viajes (conectado a la API).',
+      icono: Icons.alt_route_rounded,
+      path: '/viajes',
+      listKey: 'viajes',
+      hintBusqueda: 'Buscar viaje por ruta, vehículo, conductor, estado...',
+      etiquetaNuevo: 'Nuevo viaje',
+      camposResumen: ['ruta_id', 'vehiculo_id', 'conductor_id', 'fecha', 'hora_salida', 'hora_llegada', 'estado'],
+      campos: [
+        CampoForm(clave: 'ruta_id', etiqueta: 'ID de ruta', icono: Icons.map_outlined, tipo: TipoCampo.numero, obligatorio: false),
+        CampoForm(clave: 'vehiculo_id', etiqueta: 'ID de vehículo', icono: Icons.directions_bus_outlined, tipo: TipoCampo.numero, obligatorio: false),
+        CampoForm(clave: 'conductor_id', etiqueta: 'ID de conductor', icono: Icons.badge_outlined, tipo: TipoCampo.numero, obligatorio: false),
+        CampoForm(clave: 'fecha', etiqueta: 'Fecha (YYYY-MM-DD)', icono: Icons.event_outlined, obligatorio: false),
+        CampoForm(clave: 'hora_salida', etiqueta: 'Hora salida (HH:MM:SS)', icono: Icons.schedule_rounded, obligatorio: false),
+        CampoForm(clave: 'hora_llegada', etiqueta: 'Hora llegada (HH:MM:SS)', icono: Icons.schedule_rounded, obligatorio: false),
+        CampoForm(
+          clave: 'estado',
+          etiqueta: 'Estado',
+          icono: Icons.flag_outlined,
+          tipo: TipoCampo.opciones,
+          opciones: ['Programado', 'En curso', 'Finalizado', 'Cancelado'],
+        ),
+      ],
+    );
+  }
+}
+
+/// CRUD de Asignaciones (backend /asignaciones).
+class AdminAsignacionesSection extends StatelessWidget {
+  const AdminAsignacionesSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const _ApiCrudSection(
+      titulo: 'Asignaciones',
+      subtitulo: 'Asignación de estudiantes a rutas/paradas (conectado a la API).',
+      icono: Icons.assignment_ind_outlined,
+      path: '/asignaciones',
+      listKey: 'asignaciones',
+      hintBusqueda: 'Buscar por estudiante, ruta, parada, estado...',
+      etiquetaNuevo: 'Nueva asignación',
+      camposResumen: ['estudiante_id', 'ruta_id', 'parada', 'estado'],
+      campos: [
+        CampoForm(clave: 'estudiante_id', etiqueta: 'ID de estudiante', icono: Icons.school_outlined, tipo: TipoCampo.numero),
+        CampoForm(clave: 'ruta_id', etiqueta: 'ID de ruta', icono: Icons.map_outlined, tipo: TipoCampo.numero),
+        CampoForm(clave: 'parada', etiqueta: 'Parada', icono: Icons.location_on_outlined, obligatorio: false),
+        CampoForm(
+          clave: 'estado',
+          etiqueta: 'Estado',
+          icono: Icons.flag_outlined,
+          tipo: TipoCampo.opciones,
+          opciones: ['Activa', 'Inactiva'],
+        ),
+      ],
+    );
+  }
+}
+
+/// CRUD de Ubicaciones GPS (backend /ubicaciones). Dispositivo físico puede esperar.
+class AdminUbicacionesSection extends StatelessWidget {
+  const AdminUbicacionesSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const _ApiCrudSection(
+      titulo: 'Ubicaciones (GPS)',
+      subtitulo: 'Registro de posiciones GPS (listo para uso; dispositivo físico puede esperar).',
+      icono: Icons.my_location_rounded,
+      path: '/ubicaciones',
+      listKey: 'ubicaciones',
+      hintBusqueda: 'Buscar por viaje, latitud, longitud...',
+      etiquetaNuevo: 'Nueva ubicación',
+      camposResumen: ['viaje_id', 'latitud', 'longitud', 'velocidad', 'fecha_hora'],
+      campos: [
+        CampoForm(clave: 'viaje_id', etiqueta: 'ID de viaje (opcional)', icono: Icons.alt_route_rounded, tipo: TipoCampo.numero, obligatorio: false),
+        CampoForm(clave: 'latitud', etiqueta: 'Latitud (ej. -16.5)', icono: Icons.place_outlined, tipo: TipoCampo.numero),
+        CampoForm(clave: 'longitud', etiqueta: 'Longitud (ej. -68.15)', icono: Icons.place_outlined, tipo: TipoCampo.numero),
+        CampoForm(clave: 'velocidad', etiqueta: 'Velocidad (opcional)', icono: Icons.speed_rounded, tipo: TipoCampo.numero, obligatorio: false),
+        CampoForm(clave: 'fecha_hora', etiqueta: 'Fecha y hora (YYYY-MM-DDTHH:MM:SS, opcional)', icono: Icons.schedule_rounded, obligatorio: false),
+      ],
+    );
+  }
+}
+
 
 

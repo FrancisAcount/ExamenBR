@@ -4,6 +4,7 @@ import '../data/admin_store.dart';
 import '../models/safety_alert.dart';
 import '../theme/app_colors.dart';
 import '../widgets/common_widgets.dart';
+import 'admin/admin_form.dart';
 
 /// 🚨 Apartado 6: bitácora de retrasos, emergencias y notificaciones.
 class AlertsView extends StatelessWidget {
@@ -53,10 +54,7 @@ class AlertsView extends StatelessWidget {
               subtitle: 'Registro cronológico de eventos',
               icon: Icons.history_toggle_off_rounded,
               trailing: FilledButton.icon(
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Usa el panel administrativo para registrar alertas'))),
+                onPressed: () => _registrarAlerta(context),
                 icon: const Icon(Icons.add_alert_rounded, size: 18),
                 label: const Text('Registrar alerta'),
               ),
@@ -67,6 +65,60 @@ class AlertsView extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  Future<void> _registrarAlerta(BuildContext context) async {
+    final store = AdminStore.instance;
+    final ahora = DateTime.now();
+    final hora =
+        '${ahora.hour.toString().padLeft(2, '0')}:${ahora.minute.toString().padLeft(2, '0')}';
+    final valores = await mostrarFormulario(
+      context: context,
+      titulo: 'Registrar alerta',
+      icono: Icons.add_alert_rounded,
+      iniciales: {
+        'hora': hora,
+        'nivel': 'Informativa',
+        'respondido': 'false',
+      },
+      campos: const [
+        CampoForm(clave: 'hora', etiqueta: 'Hora (HH:MM)', icono: Icons.schedule_rounded),
+        CampoForm(clave: 'titulo', etiqueta: 'Título', icono: Icons.title_rounded),
+        CampoForm(clave: 'detalle', etiqueta: 'Detalle', icono: Icons.notes_rounded, lineas: 3),
+        CampoForm(
+          clave: 'nivel',
+          etiqueta: 'Nivel',
+          icono: Icons.priority_high_rounded,
+          tipo: TipoCampo.opciones,
+          opciones: ['Crítica', 'Advertencia', 'Informativa'],
+        ),
+        CampoForm(clave: 'ruta', etiqueta: 'Ruta / unidad afectada', icono: Icons.route_rounded),
+        CampoForm(clave: 'respondido', etiqueta: 'Marcada como atendida', tipo: TipoCampo.interruptor),
+      ],
+    );
+    if (valores == null || !context.mounted) return;
+    final nivel = switch (valores['nivel'] ?? '') {
+      'Crítica' => AlertLevel.critical,
+      'Advertencia' => AlertLevel.warning,
+      _ => AlertLevel.info,
+    };
+    final ok = store.agregarAlerta(SafetyAlert(
+      id: store.nuevoId('ALT', store.alertas.map((a) => a.id)),
+      hora: valores['hora']!,
+      titulo: valores['titulo']!,
+      detalle: valores['detalle']!,
+      nivel: nivel,
+      ruta: valores['ruta']!,
+      respondido: valores['respondido'] == 'true',
+    ));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok ? 'Alerta registrada correctamente' : 'No se pudo registrar la alerta',
+        ),
+      ),
     );
   }
 }

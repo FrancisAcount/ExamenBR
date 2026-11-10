@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../data/admin_store.dart';
+import '../models/safety_alert.dart';
 import '../theme/app_colors.dart';
+import 'admin/admin_form.dart';
 import 'welcome/welcome_benefits.dart';
 import 'welcome/welcome_footer.dart';
 import 'welcome/welcome_gallery.dart';
@@ -15,26 +18,14 @@ import 'welcome/welcome_tables.dart';
 /// Se muestra como módulo 0 del listado de `HomeScreen`, con el sidebar azul
 /// visible a la izquierda. Desde aquí, «Iniciar Sesión» devuelve al usuario al
 /// Panel de Inicio mediante [onIniciarSesion].
-/// Estructura descendente: esta pantalla solo orquesta las secciones en el
-/// orden de la referencia y delega la maquetación de cada bloque a un widget
-/// independiente dentro de `views/welcome/`.
-///
-///   1. [WelcomeHeader]              → título, buscador y «Ver rutas».
-///   2. [WelcomeHero]                → banner de bienvenida dividido.
-///   3. [WelcomeServices]            → tarjeta azul + tarjetas apiladas.
-///   4. [WelcomeBenefitsCarousel]    → carrusel de beneficios.
-///   5. [WelcomeMetricsRoutes]       → métricas y tarjetas de ruta.
-///   6. [WelcomeTablesSection]       → horarios, avisos y estado del servicio.
-///   7. [WelcomeGallerySection]      → galería de la flota y objetivos.
-///   8. [WelcomeFooter]              → suscripción y pie institucional.
-///
-/// Todo el contenido vive dentro de un único [SingleChildScrollView] para
-/// garantizar un scroll continuo entre bloques.
 class WelcomeView extends StatefulWidget {
-  const WelcomeView({super.key, this.onIniciarSesion});
+  const WelcomeView({super.key, this.onIniciarSesion, this.onVerRutas});
 
   /// Callback invocado por «Iniciar Sesión» para volver al Panel de Inicio.
   final VoidCallback? onIniciarSesion;
+
+  /// Callback para abrir el módulo de Rutas y Monitoreo.
+  final VoidCallback? onVerRutas;
 
   @override
   State<WelcomeView> createState() => _WelcomeViewState();
@@ -56,17 +47,59 @@ class _WelcomeViewState extends State<WelcomeView> {
     super.dispose();
   }
 
-  /// Desplaza la página hasta el bloque de rutas (botón «Ver rutas»).
+  /// Abre el módulo real de Rutas y Monitoreo (o hace scroll como respaldo).
   void _irARutas() {
+    if (widget.onVerRutas != null) {
+      widget.onVerRutas!.call();
+      return;
+    }
     final contexto = _anclaRutas.currentContext;
     if (contexto == null) return;
     Scrollable.ensureVisible(
       contexto,
       duration: const Duration(milliseconds: 380),
       curve: Curves.easeInOutCubic,
-      // Deja respirar el bloque bajo el header fijo.
       alignment: 0.05,
     );
+  }
+
+  Future<void> _solicitarTransporte() async {
+    final store = AdminStore.instance;
+    final valores = await mostrarFormulario(
+      context: context,
+      titulo: 'Solicitar transporte',
+      icono: Icons.directions_bus_rounded,
+      campos: const [
+        CampoForm(clave: 'estudiante', etiqueta: 'Nombre del estudiante', icono: Icons.school_outlined),
+        CampoForm(clave: 'tutor', etiqueta: 'Nombre del tutor/representante', icono: Icons.person_outline_rounded),
+        CampoForm(clave: 'telefono', etiqueta: 'Teléfono de contacto', icono: Icons.phone_rounded),
+        CampoForm(clave: 'direccion', etiqueta: 'Dirección / parada solicitada', icono: Icons.location_on_outlined),
+        CampoForm(clave: 'ruta', etiqueta: 'Ruta o zona de interés', icono: Icons.map_outlined),
+        CampoForm(clave: 'turno', etiqueta: 'Turno', icono: Icons.schedule_rounded, tipo: TipoCampo.opciones, opciones: ['Mañana', 'Tarde', 'Mañana y Tarde']),
+        CampoForm(clave: 'detalle', etiqueta: 'Detalle adicional (opcional)', icono: Icons.notes_rounded, obligatorio: false, lineas: 3),
+      ],
+    );
+    if (valores == null || !mounted) return;
+    final detalle = [
+      'Estudiante: ${valores['estudiante']}',
+      'Tutor: ${valores['tutor']}',
+      'Tel: ${valores['telefono']}',
+      'Dirección: ${valores['direccion']}',
+      'Ruta: ${valores['ruta']}',
+      'Turno: ${valores['turno']}',
+      if ((valores['detalle'] ?? '').trim().isNotEmpty) 'Detalle: ${valores['detalle']}',
+    ].join(' · ');
+    store.agregarAlerta(SafetyAlert(
+      id: store.nuevoId('ALT', store.alertas.map((a) => a.id)),
+      hora: '${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}',
+      titulo: 'Solicitud de transporte: ${valores['estudiante']}',
+      detalle: detalle,
+      nivel: AlertLevel.info,
+      ruta: valores['ruta'] ?? '',
+      respondido: false,
+    ));
+    if (!mounted) return;
+    _aviso('Solicitud registrada correctamente. El equipo la revisará pronto.');
   }
 
   /// Aviso uniforme para las acciones simuladas de la portada.
@@ -98,13 +131,13 @@ class _WelcomeViewState extends State<WelcomeView> {
             // 2. Banner de bienvenida dividido.
             WelcomeHero(
               onVerRutas: _irARutas,
-              onSolicitar: () => _aviso('Solicitud de transporte · formulario simulado'),
+              onSolicitar: _solicitarTransporte,
             ),
 
             // 3. Servicios: tarjeta azul + dos tarjetas blancas.
             WelcomeServices(
               onVerRutas: _irARutas,
-              onSolicitar: () => _aviso('Solicitud de transporte · formulario simulado'),
+              onSolicitar: _solicitarTransporte,
             ),
 
             // 4. Carrusel horizontal de beneficios.

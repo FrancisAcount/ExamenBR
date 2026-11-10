@@ -227,11 +227,11 @@ class _DriverBusDetailState extends State<_DriverBusDetail>
 
   void _seedMapMarker() {
     markers = [
-      Marker(
+      const Marker(
         point: simCenter,
         width: 40,
         height: 40,
-        child: const Icon(
+        child: Icon(
           Icons.directions_bus_filled_rounded,
           color: Colors.white,
           size: 30,

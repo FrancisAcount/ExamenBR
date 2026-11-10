@@ -1,7 +1,6 @@
 
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class EstudianteApi {
@@ -40,7 +39,16 @@ class EstudianteApi {
 }
 
 class EstudianteService {
-  static const String baseUrl = 'http://127.0.0.1:8000';
+  /// URL base de la API de estudiantes.
+  ///
+  /// Se puede sobrescribir en tiempo de compilación sin tocar código:
+  /// `flutter run --dart-define=API_ESTUDIANTES=http://192.168.1.5:8000`
+  /// (útil para probar desde un celular contra el backend de la PC).
+  /// Por defecto apunta al servidor local de `backend/`.
+  static const String baseUrl = String.fromEnvironment(
+    'API_ESTUDIANTES',
+    defaultValue: 'http://127.0.0.1:8000',
+  );
 
   static Future<List<EstudianteApi>> listar() async {
     final respuesta = await http

@@ -19,11 +19,29 @@ dependencies:
   file_picker: ^13.1.0
   image: ^4.10.1
   http: ^1.6.0
-  http: ^1.1.0
+  pdf: ^3.11.3
+  printing: ^5.14.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.4
+
+# Icono de la app (Android + Web). Se genera desde assets/icon/app_icon.png
+# con: dart run tools/crear_icono.dart && dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "assets/icon/app_icon.png"
+  android: true
+  ios: false
+  web:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+    background_color: "#0F172A"
+    theme_color: "#0F172A"
+  windows:
+    generate: false
+  macos:
+    generate: false
 
 flutter:
   uses-material-design: true

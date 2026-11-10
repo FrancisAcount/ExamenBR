@@ -74,14 +74,14 @@ class _TarjetaAzul extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          WelcomeBadge(
+          const WelcomeBadge(
             texto: 'Seguro y puntual',
             icon: Icons.verified_rounded,
             color: Colors.white,
             compacto: true,
           ),
           const SizedBox(height: 12),
-          Text(
+          const Text(
             'Tu colegio, a un viaje seguro de distancia',
             style: TextStyle(
               fontSize: 22,
@@ -164,7 +164,7 @@ class _TarjetasLaterales extends StatelessWidget {
           tintIcono: AppColors.rosadoLight,
           isDark: isDark,
         ),
-        SizedBox(height: 14),
+        const SizedBox(height: 14),
         _TarjetaDato(
           etiqueta: 'Turnos',
           valor: 'Mañana - Tarde',

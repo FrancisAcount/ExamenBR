@@ -65,7 +65,7 @@ class _SettingsViewState extends State<SettingsView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Coordinador Maranata', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                    const Text('Coordinador Maranata', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                     Text('coordinacion@maranata.edu.ec', style: TextStyle(fontSize: 12, color: Theme.of(context).brightness == Brightness.dark ? AppColors.darkTextMuted : AppColors.textMuted)),
                   ],
                 ),
@@ -138,6 +138,7 @@ class _SettingsViewState extends State<SettingsView> {
               SizedBox(
                 width: 150,
                 child: DropdownButton<int>(
+                  isExpanded: true,
                   value: _settings.updateFrequencySeconds,
                   items: const [
                     DropdownMenuItem(value: 5, child: Text('5 segundos')),
@@ -262,10 +263,10 @@ class _SettingsViewState extends State<SettingsView> {
         context: context,
         builder: (ctx) => _DialogoPin(store: store),
       );
-      if (ok != true || !context.mounted) return;
+      if (ok != true || !mounted) return;
       store.sesionAdmin = true;
     }
-    if (!context.mounted) return;
+    if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const AdminPanelView()),
     );
